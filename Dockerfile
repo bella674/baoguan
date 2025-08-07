@@ -1,11 +1,22 @@
-# 使用官方 OpenJDK 17 作為基底映像
-FROM openjdk:17-jdk-slim
-
-# 設定容器內的工作目錄
+# === 第一階段：使用 Maven 打包 ===
+FROM maven:3.8.5-openjdk-17 AS build
 WORKDIR /app
 
-# 複製 JAR 檔到容器中
-COPY target/baoguan-0.0.1-SNAPSHOT.jar app.jar
+# 複製專案所有檔案到容器中
+COPY . .
 
-# 執行 JAR 檔
-CMD ["java", "-jar", "app.jar"]
+# 使用 Maven 打包並略過測試
+RUN mvn clean package -DskipTests
+
+# === 第二階段：執行 jar ===
+FROM openjdk:17
+WORKDIR /app
+
+# 從前面 Maven 階段複製打包好的 jar
+COPY --from=build /app/target/baoguan-0.0.1-SNAPSHOT.jar app.jar
+
+# 開放容器的 8080 port
+EXPOSE 8080
+
+# 啟動 Spring Boot 應用程式
+ENTRYPOINT ["java", "-jar", "app.jar"]
